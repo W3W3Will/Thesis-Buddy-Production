@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JabarDEX</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="chat-container">
+        <header class="chat-header">
+            <img src="{{ url_for('static', filename='JabarDEX.png') }}" alt="JabarDEX">
+        </header>
+        <div id="chat-body" class="chat-body">
+            
+        </div>
+        <div class="chat-input">
+            <textarea id="prompt" placeholder="Type your message here..." required></textarea>
+            <input id="file-upload" type="file" accept=".pdf" style="display: none;" />
+            <button id="upload-button" type="button">Upload PDF</button>
+            <button id="tts-button" type="button">Speak Last Message</button>
+            <button id="send-button" type="button">Send</button>
+            
+        </div>
+        
+   
+    <script>
+        const promptInput = document.getElementById("prompt");
+        const chatBody = document.getElementById("chat-body");
+        const sendButton = document.getElementById("send-button");
+        const uploadButton = document.getElementById("upload-button");
+        const fileInput = document.getElementById("file-upload");
+        const ttsButton = document.getElementById("tts-button");
+        
+        const sendMessage = async () => {
+            const userMessage = promptInput.value.trim();
+            if (!userMessage) return;
+        
+            addMessage(userMessage, "user");
+            promptInput.value = "";
+        
+            try {
+                const response = await fetch("/api/chat", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded"
+                    },
+                    body: new URLSearchParams({
+                        message: userMessage
+                    })
+                });
+        
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+        
+                const responseData = await response.json();
+                const botMessage = responseData.botMessage;
+        
+                addMessage(botMessage, "bot");
+        
+            } catch (error) {
+                console.error("Error:", error);
+                addMessage("An error occurred. Please try again later.", "bot");
+            }
+        };
+
+        const handleFileUpload = async () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append("file", file);
+        
+            try {
+                const response = await fetch("/api/upload", {
+                    method: "POST",
+                    body: formData
+                });
+        
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+        
+                const responseData = await response.json();
+                const uploadMessage = responseData.message || "File uploaded successfully.";
+                addMessage(uploadMessage, "bot");
+        
+            } catch (error) {
+                console.error("Error:", error);
+                addMessage("An error occurred while uploading the file. Please try again.", "bot");
+            }
+        };
+
+        const requestTextToSpeech = async (text) => {
+            try {
+                const response = await fetch("/api/tts", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded"
+                    },
+                    body: new URLSearchParams({
+                        text: text
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                const blob = await response.blob();
+                const audioUrl = URL.createObjectURL(blob);
+
+                const audio = new Audio(audioUrl);
+                audio.play();
+
+            } catch (error) {
+                console.error("Error:", error);
+                alert("An error occurred while processing text-to-speech.");
+            }
+        };
+                
+        const addMessage = (text, sender) => {
+            const messageContainer = document.createElement("div");
+            messageContainer.classList.add("message-container", sender);
+
+            const profileIcon = document.createElement("img");
+            profileIcon.classList.add("profile-icon");
+            profileIcon.src = sender === "user" 
+                ? "{{ url_for('static', filename='profile-icon-user.png') }}" 
+                : "{{ url_for('static', filename='profile-icon-bot.png') }}";
+            profileIcon.alt = sender === "user" ? "User" : "Bot";
+
+            const messageElement = document.createElement("div");
+            messageElement.classList.add("message", sender);
+            messageElement.innerText = text;
+
+            if (sender === "user") {
+                messageContainer.appendChild(messageElement);
+                messageContainer.appendChild(profileIcon);
+            } else {
+                messageContainer.appendChild(profileIcon);
+                messageContainer.appendChild(messageElement);
+    }
+
+            chatBody.appendChild(messageContainer);
+            chatBody.scrollTop = chatBody.scrollHeight;
+        };
+        
+        sendButton.addEventListener("click", (event) => {
+            event.preventDefault();  
+            sendMessage();
+        });
+
+        uploadButton.addEventListener("click", () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener("change", handleFileUpload);
+        
+        promptInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
+
+        promptInput.addEventListener("input", function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+
+        ttsButton.addEventListener("click", (event) => {
+            event.preventDefault();
+            const botMessages = chatBody.querySelectorAll(".message-container.bot .message");
+            if (botMessages.length > 0) {
+                const lastBotMessage = botMessages[botMessages.length - 1].innerText; // Fetch the last bot message
+                requestTextToSpeech(lastBotMessage);
+            } else {
+                alert("No message available to convert to speech.");
+            }
+        });
+    </script>
+</body>
+</html>
