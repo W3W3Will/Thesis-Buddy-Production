@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clickable Attachment Icon with Pop-up Menu</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        .attachment-icon {
+            font-size: 24px;
+            color: #007bff;
+            cursor: pointer;
+            text-decoration: none;
+            position: relative;
+        }
+
+        .attachment-icon:hover {
+            color: #0056b3;
+        }
+
+        /* Pop-up Menu Styling */
+        .popup-menu {
+            display: none;
+            position: absolute;
+            top: 30px; /* Adjust based on your needs */
+            left: 0;
+            background-color: #1c1c1c;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 10px;
+            width: 250px; /* Adjust width based on your needs */
+            z-index: 1000;
+        }
+
+        .popup-menu a {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.2s ease;
+        }
+
+        .popup-menu a:hover {
+            background-color: #333;
+        }
+
+        .popup-menu a i {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Attachment Icon -->
+    <div class="attachment-icon" onclick="toggleMenu()">
+        <i class="fas fa-paperclip"></i>
+    </div>
+
+    <!-- Pop-up Menu -->
+    <div class="popup-menu" id="popupMenu">
+        <a href="#"><i class="fas fa-cloud"></i> Connect to Google Drive</a>
+        <a href="#"><i class="fas fa-hdd"></i> Upload from computer</a>
+    </div>
+
+    <script>
+        // JavaScript to toggle the pop-up menu
+        function toggleMenu() {
+            var menu = document.getElementById('popupMenu');
+            menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'block' : 'none';
+        }
+
+        // Close the menu if clicked outside
+        document.addEventListener('click', function(event) {
+            var isClickInside = document.querySelector('.attachment-icon').contains(event.target);
+            var menu = document.getElementById('popupMenu');
+            
+            if (!isClickInside) {
+                menu.style.display = 'none';
+            }
+        });
+    </script>
+
+</body>
+</html>

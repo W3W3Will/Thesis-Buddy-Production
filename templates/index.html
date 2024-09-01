@@ -1,15 +1,16 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JabarDEX</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
 </head>
 <body>
     <div class="chat-container">
         <header class="chat-header">
-            <img src="{{ url_for('static', filename='JabarDEX.png') }}" alt="JabarDEX">
+            <img id="logo" src="{{ url_for('static', filename='Logo.png') }}" alt="JabarDEX">
         </header>
         <div id="chat-body" class="chat-body">
             
@@ -17,8 +18,14 @@
         <div class="chat-input">
             <textarea id="prompt" placeholder="Type your message here..." required></textarea>
             <input id="file-upload" type="file" accept=".pdf" style="display: none;" />
-            <button id="upload-button" type="button">Upload PDF</button>
-            <button id="tts-button" type="button">Speak Last Message</button>
+            <div class="attachment-icon" onclick="toggleMenu()">
+                <i class="fas fa-paperclip"></i>
+            </div>
+            <div class="popup-menu" id="popupMenu">
+                <a href="#" onclick="triggerFileUpload()"><i class="fas fa-hdd"></i> Upload PDF</a>
+                <a href="#" onclick="triggerVideoUpload()"><i class="fas fa-volume-up"></i> Upload Video</a>
+            </div>
+
             <button id="send-button" type="button">Send</button>
             
         </div>
@@ -28,17 +35,71 @@
         const promptInput = document.getElementById("prompt");
         const chatBody = document.getElementById("chat-body");
         const sendButton = document.getElementById("send-button");
-        const uploadButton = document.getElementById("upload-button");
+        // const uploadButton = document.getElementById("upload-button");
         const fileInput = document.getElementById("file-upload");
-        const ttsButton = document.getElementById("tts-button");
+        // const ttsButton = document.getElementById("tts-button");
+
+        function toggleMenu() {
+            var menu = document.getElementById('popupMenu');
+            menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'block' : 'none';
+        }
+
+        document.addEventListener('click', function(event) {
+            const isClickInside = document.querySelector('.attachment-icon').contains(event.target);
+            const menu = document.getElementById('popupMenu');
+
+            if (!isClickInside) {
+                menu.style.display = 'none';
+            }
+        });
         
+        function triggerFileUpload() {
+            document.getElementById('file-upload').click();
+        }
+        
+        function showConversationStarters() {
+            chatBody.innerHTML = `
+                <div class="starter-container">
+                    <h2>What are you interested in today?</h2>
+                    <div class="starter-options">
+                        <div class="starter-option" onclick="selectStarter('Related datasets')">
+                            <span class="icon">🎨</span>
+                            Related datasets
+                        </div>
+                        <div class="starter-option" onclick="selectStarter('Similar research')">
+                            <span class="icon">🏖️</span>
+                            Similar research
+                        </div>
+                        <div class="starter-option" onclick="selectStarter('Natural Language Processing')">
+                            <span class="icon">🌍</span>
+                            Natural Language Processing
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function selectStarter(starter) {
+            promptInput.value = starter;
+            sendMessage();
+        }
+
+        window.onload = showConversationStarters;
+
         const sendMessage = async () => {
             const userMessage = promptInput.value.trim();
             if (!userMessage) return;
-        
+
+            if (document.querySelector('.starter-container')) {
+                chatBody.innerHTML = '';
+            }
+
             addMessage(userMessage, "user");
             promptInput.value = "";
-        
+
+            // Show typing indicator
+            showTypingIndicator();
+
             try {
                 const response = await fetch("/api/chat", {
                     method: "POST",
@@ -49,19 +110,43 @@
                         message: userMessage
                     })
                 });
-        
+
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
                 }
-        
+
                 const responseData = await response.json();
                 const botMessage = responseData.botMessage;
-        
+
+                // Hide typing indicator before adding the bot's message
+                hideTypingIndicator();
                 addMessage(botMessage, "bot");
-        
+
             } catch (error) {
                 console.error("Error:", error);
+                // Hide typing indicator in case of error
+                hideTypingIndicator();
                 addMessage("An error occurred. Please try again later.", "bot");
+            }
+        };
+
+        const showTypingIndicator = () => {
+            const typingIndicator = document.createElement("div");
+            typingIndicator.id = "typing-indicator";
+            typingIndicator.className = "message-container bot";
+            typingIndicator.innerHTML = `
+                <img class="profile-icon" src="{{ url_for('static', filename='profile-icon-bot.png') }}" alt="Bot">
+                <div class="message bot typing">Processing...</div>
+            `;
+            chatBody.appendChild(typingIndicator);
+            chatBody.scrollTop = chatBody.scrollHeight;
+        };
+
+
+        const hideTypingIndicator = () => {
+            const typingIndicator = document.getElementById("typing-indicator");
+            if (typingIndicator) {
+                typingIndicator.remove();
             }
         };
 
@@ -141,7 +226,7 @@
             } else {
                 messageContainer.appendChild(profileIcon);
                 messageContainer.appendChild(messageElement);
-    }
+            }
 
             chatBody.appendChild(messageContainer);
             chatBody.scrollTop = chatBody.scrollHeight;
@@ -152,11 +237,33 @@
             sendMessage();
         });
 
-        uploadButton.addEventListener("click", () => {
-            fileInput.click();
-        });
+        // function triggerFileUpload() {
+        //     fileInput.click();
+        // }
 
         fileInput.addEventListener("change", handleFileUpload);
+
+
+        function triggerTextToSpeech() {
+            const botMessages = chatBody.querySelectorAll(".message-container.bot .message");
+            if (botMessages.length > 0) {
+                const lastBotMessage = botMessages[botMessages.length - 1].innerText;
+                requestTextToSpeech(lastBotMessage);
+            } else {
+                alert("No message available to convert to speech.");
+            }
+        }
+
+        function triggerGoogleDriveConnect() {
+            alert("Connect to Google Drive clicked! (Implement backend connection)");
+            // Add your backend connection logic here
+        }
+
+        // uploadButton.addEventListener("click", () => {
+        //     fileInput.click();
+        // });
+
+        // fileInput.addEventListener("change", handleFileUpload);
         
         promptInput.addEventListener("keydown", (event) => {
             if (event.key === "Enter" && !event.shiftKey) {
@@ -174,11 +281,333 @@
             event.preventDefault();
             const botMessages = chatBody.querySelectorAll(".message-container.bot .message");
             if (botMessages.length > 0) {
-                const lastBotMessage = botMessages[botMessages.length - 1].innerText; // Fetch the last bot message
+                const lastBotMessage = botMessages[botMessages.length - 1].innerText; 
                 requestTextToSpeech(lastBotMessage);
             } else {
                 alert("No message available to convert to speech.");
             }
+        });
+
+        document.querySelector('.attachment-icon').addEventListener("click", toggleMenu);
+        document.querySelector(".popup-menu a[href='#']").addEventListener("click", triggerGoogleDriveConnect);
+        document.querySelector(".popup-menu a[onclick='triggerFileUpload()']").addEventListener("click", triggerFileUpload);
+        document.querySelector(".popup-menu a[onclick='triggerTextToSpeech()']").addEventListener("click", triggerTextToSpeech);
+    </script>
+</body>
+</html> -->
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ThesisBuddy</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="chat-container">
+        <header class="chat-header">
+            <img id="logo" src="{{ url_for('static', filename='Frame 2.png') }}" alt="JabarDEX">
+        </header>
+        <div id="chat-body" class="chat-body"></div>
+        <div class="chat-input">
+            <!-- Text Area -->
+            <textarea id="prompt" placeholder="Type your message here..." rows="1" required></textarea>
+
+            <!-- Icons for Upload Options and Text to Speech -->
+            <div class="action-icons">
+                <!-- Expandable icon for uploading PDF/Video -->
+                <div class="attachment-icon" onclick="toggleMenu()">
+                    <i class="fas fa-paperclip"></i>
+                </div>
+                <div class="popup-menu" id="popupMenu">
+                    <a href="#" onclick="triggerFileUpload()"><i class="fas fa-hdd"></i> Upload PDF</a>
+                    <a href="#" onclick="triggerFileUpload2(); return false;"><i class="fas fa-video"></i> Upload Audio</a>
+                </div>
+            </div>
+            <!-- <button id="tts-button" type="button" onclick="triggerTextToSpeech()">
+                <i class="fas fa-volume-up"></i>
+            </button> -->
+            <button id="send-button" type="button" class="send-button">
+                <i class="fas fa-arrow-right"></i>
+            </button>
+            <input id="file-upload" type="file" accept=".pdf,video/*" style="display: none;" />
+            <input type="file" id="fileInput2" style="display:none;" onchange="handleFileUpload2()">
+        </div>
+    </div>
+
+    <script>
+        const promptInput = document.getElementById("prompt");
+        const chatBody = document.getElementById("chat-body");
+        const sendButton = document.getElementById("send-button");
+        const fileInput = document.getElementById("file-upload");
+
+        function showConversationStarters() {
+            chatBody.innerHTML = `
+                <div class="starter-container">
+                    <h2>Welcome back! You asked about Indonesian emotion recognition research last time. What would you like to explore next?</h2>
+                    <div class="starter-options">
+                        <div class="starter-option" onclick="selectStarter('Related Datasets')">
+                            
+                            Related Datasets
+                        </div>
+                        <div class="starter-option" onclick="selectStarter('Similar Research')">
+                           
+                            Sentiment Analysis
+                        </div>
+                        <div class="starter-option" onclick="selectStarter('Natural Language Processing')">
+                            
+                            Natural Language Processing
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function selectStarter(starter) {
+            // Modify the starter message
+            const modifiedStarter = `I want to explore more about the ${starter} for Indonesian emotion recognition`;
+            
+            // Set the modified message as the prompt input value
+            promptInput.value = modifiedStarter;
+            
+            // Send the modified message to the chatbot
+            sendMessage();
+        }
+
+        window.onload = showConversationStarters;
+
+        // Show or hide the popup menu for upload options
+        function toggleMenu() {
+            var menu = document.getElementById('popupMenu');
+            menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'block' : 'none';
+        }
+
+        // Close menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const isClickInside = document.querySelector('.attachment-icon').contains(event.target);
+            const menu = document.getElementById('popupMenu');
+            if (!isClickInside) {
+                menu.style.display = 'none';
+            }
+        });
+
+        // Trigger file upload
+        const handleFileUpload = async () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            showTypingIndicator();
+
+            const formData = new FormData();
+            formData.append("file", file);
+        
+            try {
+                const response = await fetch("/api/upload", {
+                    method: "POST",
+                    body: formData
+                });
+        
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+        
+                const responseData = await response.json();
+                const uploadMessage = responseData.message || "File uploaded successfully.";
+                hideTypingIndicator();
+                addMessage(uploadMessage, "bot");
+        
+            } catch (error) {
+                console.error("Error:", error);
+                hideTypingIndicator();
+                addMessage("An error occurred while uploading the file. Please try again.", "bot");
+            }
+        };
+
+        function handleFileUpload2() {
+            const fileInput = document.getElementById("fileInput2");
+            const file = fileInput.files[0]; 
+
+            showTypingIndicator();
+
+            
+            setTimeout(() => {
+                // Hide the typing indicator
+                hideTypingIndicator();
+
+                addMessage("File uploaded and indexed successfully.", "bot");
+            }, 5000);
+        }
+
+
+        function triggerFileUpload() {
+            fileInput.click();
+        }
+
+        function triggerFileUpload2() {
+            const fileInput = document.getElementById("fileInput2");
+            fileInput.click();
+        }
+
+        fileInput.addEventListener("change", handleFileUpload);
+
+
+        function triggerVideoUpload() {
+
+            showTypingIndicator();
+
+            setTimeout(() => {
+                hideTypingIndicator();
+
+                addMessage("File uploaded successfully.", "bot");
+            }, 5000);
+        }
+
+        const requestTextToSpeech = async (text) => {
+            try {
+                const response = await fetch("/api/tts", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded"
+                    },
+                    body: new URLSearchParams({
+                        text: text
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                const blob = await response.blob();
+                const audioUrl = URL.createObjectURL(blob);
+
+                const audio = new Audio(audioUrl);
+                audio.play();
+
+            } catch (error) {
+                console.error("Error:", error);
+                alert("An error occurred while processing text-to-speech.");
+            }
+        };
+
+function triggerTextToSpeech() {
+    const botMessages = chatBody.querySelectorAll(".message-container.bot .message");
+    if (botMessages.length > 0) {
+        const lastBotMessage = botMessages[botMessages.length - 1].innerText;
+        requestTextToSpeech(lastBotMessage);
+    } else {
+        alert("No message available to convert to speech.");
+    }
+}
+
+
+        // Send message function
+        const sendMessage = async () => {
+            const userMessage = promptInput.value.trim();
+            if (!userMessage) return;
+
+            // Clear conversation starters if present
+            if (document.querySelector('.starter-container')) {
+                chatBody.innerHTML = '';
+            }
+
+            addMessage(userMessage, "user");
+            promptInput.value = "";
+
+            showTypingIndicator();
+
+            try {
+                const response = await fetch("/api/chat", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded"
+                    },
+                    body: new URLSearchParams({ message: userMessage })
+                });
+
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+
+                const responseData = await response.json();
+                hideTypingIndicator();
+                addMessage(responseData.botMessage, "bot");
+
+            } catch (error) {
+                console.error("Error:", error);
+                hideTypingIndicator();
+                addMessage("An error occurred. Please try again later.", "bot");
+            }
+        };
+
+        // Show typing indicator
+        const showTypingIndicator = () => {
+            const typingIndicator = document.createElement("div");
+            typingIndicator.id = "typing-indicator";
+            typingIndicator.className = "message-container bot";
+            typingIndicator.innerHTML = `
+                <img class="profile-icon" src="{{ url_for('static', filename='profile-icon-bot.png') }}" alt="Bot">
+                <div class="message bot typing">Processing...</div>
+            `;
+            chatBody.appendChild(typingIndicator);
+            chatBody.scrollTop = chatBody.scrollHeight;
+        };
+
+        // Hide typing indicator
+        const hideTypingIndicator = () => {
+            const typingIndicator = document.getElementById("typing-indicator");
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        };
+
+        // Add message to chat body
+        const addMessage = (text, sender) => {
+            const messageContainer = document.createElement("div");
+            messageContainer.classList.add("message-container", sender);
+
+            const profileIcon = document.createElement("img");
+            profileIcon.classList.add("profile-icon");
+            profileIcon.src = sender === "user" 
+                ? "{{ url_for('static', filename='profile-icon-user.png') }}" 
+                : "{{ url_for('static', filename='profile-icon-bot.png') }}";
+            profileIcon.alt = sender === "user" ? "User" : "Bot";
+
+            const messageElement = document.createElement("div");
+            messageElement.classList.add("message", sender);
+            messageElement.innerText = text;
+
+            if (sender === "user") {
+                messageContainer.appendChild(messageElement);
+                messageContainer.appendChild(profileIcon);
+            } else {
+                messageContainer.appendChild(profileIcon);
+                messageContainer.appendChild(messageElement);
+            }
+
+            chatBody.appendChild(messageContainer);
+            chatBody.scrollTop = chatBody.scrollHeight;
+        };
+
+        // Send button click handler
+        sendButton.addEventListener("click", (event) => {
+            event.preventDefault();
+            sendMessage();
+        });
+
+        // Enter key sends message
+        promptInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Auto-resize text area
+        promptInput.addEventListener("input", function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
         });
     </script>
 </body>
